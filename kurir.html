@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kurir Proklamasi: Matahari di Pegangsaan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --vintage-sepia: #f4ecd8;
+            --vintage-paper: #e5d3b3;
+            --charcoal: #2c2c2c;
+            --flag-red: #b22222;
+            --ink-black: #1a1a1a;
+            --shadow: rgba(0,0,0,0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--ink-black);
+            font-family: 'Special Elite', 'Courier New', Courier, monospace;
+            color: var(--charcoal);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 900px;
+            height: 600px;
+            background-color: var(--vintage-sepia);
+            position: relative;
+            border: 8px solid var(--charcoal);
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* UI Bar - Fixed at top with high z-index */
+        #ui-bar {
+            height: 60px;
+            background: var(--charcoal);
+            color: var(--vintage-sepia);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 25px;
+            font-size: 1.1rem;
+            z-index: 100; 
+            border-bottom: 3px solid var(--flag-red);
+            position: relative;
+        }
+
+        #health-container { display: flex; gap: 8px; align-items: center; }
+        .bamboo-icon { font-size: 1.4rem; filter: drop-shadow(0 0 2px rgba(255,255,255,0.2)); }
+
+        /* Screens */
+        .screen {
+            position: absolute;
+            top: 60px; left: 0; width: 100%; height: calc(100% - 60px);
+            display: none;
+            flex-direction: column;
+            padding: 20px;
+            z-index: 10;
+        }
+
+        .screen.active { display: flex; }
+
+        #home-screen {
+            top: 0; height: 100%;
+            background: linear-gradient(rgba(244, 236, 216, 0.85), rgba(244, 236, 216, 0.85)), 
+                        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.05) 3px);
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 110;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            color: var(--flag-red);
+            text-shadow: 2px 2px var(--shadow);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            font-style: italic;
+        }
+
+        .btn {
+            background-color: var(--charcoal);
+            color: var(--vintage-sepia);
+            padding: 12px 30px;
+            border: none;
+            font-family: inherit;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+            border-bottom: 4px solid #000;
+        }
+
+        .btn:hover {
+            background-color: var(--flag-red);
+            transform: translateY(-2px);
+        }
+
+        .btn:active { transform: translateY(2px); border-bottom: 0; }
+
+        #game-view {
+            flex: 1;
+            position: relative;
+            background: var(--vintage-paper);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #visual-area {
+            height: 55%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'VT323', monospace;
+            font-size: 6rem;
+            border-bottom: 2px dashed var(--charcoal);
+        }
+
+        #dialog-area {
+            height: 45%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #speaker-name { font-weight: bold; color: var(--flag-red); margin-bottom: 5px; text-transform: uppercase; }
+        #text-content { font-size: 1.1rem; line-height: 1.4; margin-bottom: 15px; overflow-y: auto; }
+        #choices-container { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        /* Canvas Container */
+        #canvas-container {
+            display: none;
+            position: absolute;
+            top: 60px; left: 0; width: 100%; height: calc(100% - 60px);
+            background: #111;
+            z-index: 50; 
+        }
+
+        canvas { display: block; margin: auto; background: #222; border: 4px solid #333; }
+
+        #settings-modal {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            background: var(--vintage-sepia);
+            border: 4px solid var(--charcoal);
+            padding: 30px;
+            z-index: 200;
+            display: none;
+        }
+
+        .hidden { display: none !important; }
+        .diff-card { background: var(--vintage-paper); padding: 15px; border: 2px solid var(--charcoal); cursor: pointer; transition: 0.2s; }
+        .diff-card.selected { border-color: var(--flag-red); background: #fff; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- UI Bar -->
+        <div id="ui-bar" class="hidden">
+            <div id="player-info">SURA | RAKYAT BIASA</div>
+            <div id="health-container"></div>
+        </div>
+
+        <!-- Screens -->
+        <div id="home-screen" class="screen active">
+            <h1>Kurir Proklamasi</h1>
+            <p class="subtitle">"Matahari di Pegangsaan"</p>
+            <button class="btn" onclick="showCharacterSelection()">Mulai Petualangan</button>
+            <button class="btn" onclick="toggleSettings(true)">Pengaturan</button>
+        </div>
+
+        <div id="char-screen" class="screen">
+            <h2>Identitas Pemuda</h2>
+            <div style="margin: 20px 0;">
+                <label>Siapa namamu, Saudara?</label><br>
+                <input type="text" id="nickname-input" style="padding: 10px; width: 100%; margin-top: 10px; font-family: inherit;" placeholder="Masukkan nama..." maxlength="12">
+            </div>
+            <h3>Pilih Peranmu:</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px;">
+                <div class="diff-card" onclick="setDifficulty('easy', this)"><strong>Rakyat</strong><br><small>5 Nyawa</small></div>
+                <div class="diff-card" onclick="setDifficulty('medium', this)"><strong>Aktivis</strong><br><small>3 Nyawa</small></div>
+                <div class="diff-card" onclick="setDifficulty('hard', this)"><strong>Mata-Mata</strong><br><small>1 Nyawa</small></div>
+            </div>
+            <div style="margin-top: 30px;">
+                <button class="btn" onclick="startGame()">Konfirmasi</button>
+                <button class="btn" onclick="goHome()">Kembali</button>
+            </div>
+        </div>
+
+        <div id="main-game" class="screen">
+            <div id="game-view">
+                <div id="visual-area">🏯</div>
+                <div id="dialog-area">
+                    <div id="speaker-name">NARATOR</div>
+                    <div id="text-content">Memuat cerita...</div>
+                    <div id="choices-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="gameCanvas"></canvas>
+            <div style="position:absolute; bottom:15px; left:15px; color:white; font-size:14px; pointer-events:none; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 4px;">
+                [Gunakan PANAH untuk bergerak, Tahan <span id="run-key-display">Z</span> untuk berlari]
+            </div>
+        </div>
+
+        <div id="settings-modal">
+            <h2>PENGATURAN KONTROL</h2>
+            <div id="key-rebinding" style="margin: 20px 0;"></div>
+            <button class="btn" style="width:100%" onclick="toggleSettings(false)">Simpan & Tutup</button>
+        </div>
+    </div>
+
+    <script>
+        /** STATE & DATA **/
+        let gameState = {
+            nickname: "Sura", difficulty: "easy", hp: 5, maxHp: 5, courage: 0,
+            currentScene: "bab1_start",
+            controls: { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight", run: "KeyZ" }
+        };
+
+        const storyData = {
+            "bab1_start": {
+                speaker: "Pak Kumis", visual: "🥸☕",
+                text: "Sura! Cepat antarkan pesanan ini ke rumah di ujung jalan. Jangan banyak menoleh. Serdadu Jepang sedang sensitif hari ini.",
+                choices: [{ text: "Siap, Pak!", next: "bab1_ask" }]
+            },
+            "bab1_ask": {
+                speaker: "Pak Kumis", visual: "🤫",
+                text: "Waspadalah. Dinding punya telinga. Jalankan kakimu sekarang sebelum mereka curiga.",
+                choices: [
+                    { text: "Menguping Pembicaraan Jepang", next: "bab1_eavesdrop" },
+                    { text: "Langsung Berangkat", next: "mission_1" }
+                ]
+            },
+            "bab1_eavesdrop": {
+                speaker: "Sura", visual: "😲👂",
+                text: "Kamu mendengar bisik-bisik tegang... 'Owari da (Sudah berakhir)'. Sepertinya mereka panik karena kabar bom di tanah air mereka.",
+                onEnter: () => { gameState.courage++; modifyHP(-1); }, // Terlalu lama menguping kena tegur
+                choices: [{ text: "Segera Lari ke Menteng", next: "mission_1" }]
+            },
+            "bab2_start": {
+                speaker: "Mak Siti", visual: "👵🧵",
+                text: "Kau datang juga, [NAME]. Lihat bendera ini... Aku menjahitnya diam-diam dengan kain sisa.",
+                choices: [{ text: "Kenapa Mak menjahitnya sekarang?", next: "bab2_why" }]
+            },
+            "bab2_why": {
+                speaker: "Mak Siti", visual: "👵📜",
+                text: "Karena surat yang kau bawa adalah fajar. Bung Karno dan Bung Hatta sudah menunggu kabar ini. Siapkah kau membawanya ke Pegangsaan?",
+                choices: [
+                    { text: "Saya siap, Mak!", next: "bab2_ready" },
+                    { text: "Saya takut...", next: "bab2_worry" }
+                ]
+            },
+            "bab2_ready": {
+                speaker: "Mak Siti", visual: "👵🤝🫡",
+                text: "Bagus. Ambil rute lewat belakang rumah. Jangan biarkan patroli Kempeitai melihatmu.",
+                choices: [{ text: "Antarkan Pesan Terakhir", next: "mission_2" }]
+            },
+            "bab2_worry": {
+                speaker: "Mak Siti", visual: "👵🫳😮‍💨",
+                text: "Wajar takut, Nak. Tapi demi anak cucu kita, keberanian adalah satu-satunya pilihan. Ambil jimat ini (HP +1).",
+                onEnter: () => { modifyHP(1); },
+                choices: [{ text: "Bismillah, saya jalan!", next: "mission_2" }]
+            },
+            "bab3_start": {
+                speaker: "Sura", visual: "🏯",
+                text: "Itu dia gerbang rumah Bung Karno! Tapi penjagaannya sangat ketat. Aku harus masuk lewat samping!",
+                choices: [{ text: "Masuk ke Pegangsaan 56", next: "ending" }]
+            },
+            "ending": {
+                speaker: "Bung Karno", visual: "🎙️",
+                text: "Atas nama bangsa Indonesia, dengan ini menyatakan Kemerdekaan Indonesia...",
+                choices: [{ text: "Saksikan Sejarah", next: "true_ending" }]
+            },
+            "true_ending": {
+                speaker: "NARATOR", visual: "🌅",
+                text: "Matahari terbit di Indonesia yang baru. Kamu adalah pahlawan tanpa nama yang memastikan pesan itu sampai.",
+                choices: [{ text: "Kembali ke Menu", next: "home" }]
+            },
+            "game_over": {
+                speaker: "AKHIR", visual: "💀",
+                text: "Kamu tertangkap dan pesan itu dihancurkan. Sejarah berubah menjadi gelap...",
+                choices: [{ text: "Coba Lagi dari Awal", next: "home" }]
+            }
+        };
+
+        /** INITIALIZATION **/
+        window.onload = () => { loadSettings(); initRebindingUI(); };
+        function loadSettings() { 
+            const saved = localStorage.getItem('kurir_controls'); 
+            if(saved) gameState.controls = JSON.parse(saved); 
+            document.getElementById('run-key-display').innerText = gameState.controls.run.replace('Key', ''); 
+        }
+        function toggleSettings(show) { document.getElementById('settings-modal').style.display = show ? 'block' : 'none'; }
+        function goHome() { location.reload(); }
+        function showCharacterSelection() { 
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); 
+            document.getElementById('char-screen').classList.add('active'); 
+        }
+
+        function setDifficulty(level, el) { 
+            gameState.difficulty = level; 
+            document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected')); el.classList.add('selected');
+            gameState.maxHp = level === 'easy' ? 5 : (level === 'medium' ? 3 : 1);
+            gameState.hp = gameState.maxHp;
+        }
+
+        function startGame() {
+            const name = document.getElementById('nickname-input').value;
+            if(name) gameState.nickname = name;
+            document.getElementById('ui-bar').classList.remove('hidden');
+            document.getElementById('player-info').innerText = `${gameState.nickname.toUpperCase()} | ${gameState.difficulty.toUpperCase()}`;
+            updateHealthUI();
+            showScreen('main-game');
+            updateScene("bab1_start");
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function updateScene(sceneKey) {
+            if(sceneKey === "home") return goHome();
+            if(sceneKey === "mission_1") return startMission(1);
+            if(sceneKey === "mission_2") return startMission(2);
+            const scene = storyData[sceneKey];
+            gameState.currentScene = sceneKey;
+            if(scene.onEnter) scene.onEnter();
+
+            document.getElementById('visual-area').innerText = scene.visual;
+            document.getElementById('speaker-name').innerText = scene.speaker;
+            document.getElementById('text-content').innerText = scene.text.replace("[NAME]", gameState.nickname);
+            const container = document.getElementById('choices-container');
+            container.innerHTML = "";
+            scene.choices.forEach(c => {
+                const btn = document.createElement('button'); btn.className = "btn"; btn.innerText = c.text; btn.onclick = () => updateScene(c.next); container.appendChild(btn);
+            });
+            if(gameState.hp <= 0) setTimeout(() => updateScene("game_over"), 300);
+        }
+
+        function modifyHP(amount) {
+            gameState.hp += amount;
+            // Pastikan tidak melebihi batas maksimal yang ditentukan di awal permainan
+            if(gameState.hp > gameState.maxHp) gameState.hp = gameState.maxHp;
+            if(gameState.hp < 0) gameState.hp = 0;
+            updateHealthUI();
+        }
+
+        function updateHealthUI() {
+            const container = document.getElementById('health-container');
+            container.innerHTML = "";
+            for(let i=0; i<gameState.maxHp; i++) {
+                const icon = document.createElement('span');
+                icon.className = "heart-icon";
+                icon.innerHTML = i < gameState.hp ? "❤️" : "💀";
+                container.appendChild(icon);
+            }
+        }
+
+        function initRebindingUI() {
+            const container = document.getElementById('key-rebinding');
+            for(let action in gameState.controls) {
+                const row = document.createElement('div');
+                row.style.display = "flex"; row.style.justifyContent = "space-between"; row.style.marginBottom = "5px";
+                row.innerHTML = `<span>${action.toUpperCase()}</span><button onclick="rebindKey('${action}', this)" style="background:#000;color:#fff;padding:4px 12px;font-family:inherit;">${gameState.controls[action]}</button>`;
+                container.appendChild(row);
+            }
+        }
+
+        function rebindKey(action, btn) {
+            btn.innerText = "...";
+            const handler = (e) => {
+                gameState.controls[action] = e.code; btn.innerText = e.code;
+                localStorage.setItem('kurir_controls', JSON.stringify(gameState.controls)); loadSettings();
+                window.removeEventListener('keydown', handler);
+            };
+            window.addEventListener('keydown', handler);
+        }
+
+        /** ENGINE **/
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameLoop;
+        let missionData = {
+            player: { x: 40, y: 40, speed: 2.5 },
+            guards: [], walls: [], goal: { x: 0, y: 0 },
+            isRunning: false, keys: {}
+        };
+
+        function startMission(num) {
+            document.getElementById('canvas-container').style.display = "block";
+            canvas.width = 800; canvas.height = 500;
+            missionData.walls = [];
+            if(num === 1) setupMap1(); else setupMap2();
+            missionData.player.x = 40; missionData.player.y = 40;
+            missionData.isRunning = true;
+            window.onkeydown = e => missionData.keys[e.code] = true;
+            window.onkeyup = e => missionData.keys[e.code] = false;
+            gameLoop = requestAnimationFrame(updateAction);
+        }
+
+        function setupMap1() {
+            missionData.walls = [
+                {x: 180, y: 0, w: 20, h: 220}, {x: 0, y: 320, w: 320, h: 20},
+                {x: 480, y: 0, w: 20, h: 360}, {x: 480, y: 360, w: 180, h: 20},
+                {x: 660, y: 220, w: 140, h: 20}
+            ];
+            missionData.goal = { x: 740, y: 440 };
+            missionData.guards = [
+                {x: 300, y: 120, dx: 1.8, dy: 1.2, angle: 0, range: 130},
+                {x: 580, y: 280, dx: -1.5, dy: 1, angle: 0, range: 140}
+            ];
+        }
+
+        function setupMap2() {
+            // PERBAIKAN TOTAL MAP 2: Jalan dibuat berkelok tapi terbuka
+            missionData.walls = [
+                {x: 200, y: 0, w: 20, h: 120},    // Sekat 1 atas
+                {x: 0, y: 220, w: 120, h: 20},   // Sekat 1 bawah (dipendekkan agar bisa lewat bawah)
+                {x: 380, y: 100, w: 20, h: 300},  // Sekat Tengah Vertikal
+                {x: 380, y: 100, w: 250, h: 20},  // Sekat Tengah Horisontal (Membuka jalan ke kanan)
+                {x: 630, y: 250, w: 20, h: 250},  // Sekat samping Exit
+                {x: 500, y: 400, w: 130, h: 20}   // Sekat bawah
+            ];
+            missionData.goal = { x: 740, y: 40 }; // EXIT di kanan atas
+            missionData.guards = [
+                {x: 250, y: 350, dx: 2, dy: 0, angle: 0, range: 140},
+                {x: 500, y: 150, dx: 0, dy: 1.8, angle: 0, range: 150},
+                {x: 700, y: 400, dx: -2, dy: 0, angle: 0, range: 130}
+            ];
+        }
+
+        function updateAction() {
+            if(!missionData.isRunning) return;
+            let speed = missionData.player.speed;
+            if(missionData.keys[gameState.controls.run]) speed *= 1.8;
+
+            let nx = missionData.player.x, ny = missionData.player.y;
+            if(missionData.keys[gameState.controls.up]) ny -= speed;
+            if(missionData.keys[gameState.controls.down]) ny += speed;
+            if(missionData.keys[gameState.controls.left]) nx -= speed;
+            if(missionData.keys[gameState.controls.right]) nx += speed;
+
+            if(!checkWallCollision(nx, ny, 2)) {
+                missionData.player.x = Math.max(0, Math.min(canvas.width-20, nx));
+                missionData.player.y = Math.max(0, Math.min(canvas.height-20, ny));
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Goal
+            ctx.fillStyle = "#ffd700"; ctx.fillRect(missionData.goal.x, missionData.goal.y, 40, 40);
+            ctx.fillStyle = "#000"; ctx.font = "bold 12px Arial"; ctx.fillText("EXIT", missionData.goal.x+5, missionData.goal.y+25);
+
+            // Walls
+            ctx.fillStyle = "#4a4a4a";
+            missionData.walls.forEach(w => ctx.fillRect(w.x, w.y, w.w, w.h));
+
+            // Player
+            ctx.fillStyle = "#fff"; ctx.fillRect(missionData.player.x, missionData.player.y, 20, 20);
+
+            // Guards
+            missionData.guards.forEach(g => {
+                let gnx = g.x + g.dx, gny = g.y + g.dy;
+                if(checkWallCollision(gnx, g.y, 8) || gnx < 10 || gnx > canvas.width-10) g.dx *= -1;
+                if(checkWallCollision(g.x, gny, 8) || gny < 10 || gny > canvas.height-10) g.dy *= -1;
+                g.x += g.dx; g.y += g.dy;
+                g.angle = Math.atan2(g.dy, g.dx);
+
+                // Cone of sight
+                ctx.beginPath(); ctx.moveTo(g.x, g.y);
+                ctx.arc(g.x, g.y, g.range, g.angle-0.4, g.angle+0.4);
+                ctx.lineTo(g.x, g.y);
+                ctx.fillStyle = "rgba(255, 255, 0, 0.2)"; ctx.fill();
+                
+                // Guard body
+                ctx.fillStyle = "#ff4444"; ctx.beginPath(); ctx.arc(g.x, g.y, 9, 0, Math.PI*2); ctx.fill();
+
+                // Detection
+                let d = Math.hypot(missionData.player.x - g.x, missionData.player.y - g.y);
+                let a = Math.abs(Math.atan2(missionData.player.y - g.y, missionData.player.x - g.x) - g.angle);
+                if(a > Math.PI) a = Math.PI*2 - a;
+                if(d < g.range && a < 0.45) caught();
+                if(missionData.keys[gameState.controls.run] && d < 70) caught(); // Noise detection
+            });
+
+            if(Math.hypot(missionData.player.x-missionData.goal.x, missionData.player.y-missionData.goal.y) < 35) winMission();
+            else gameLoop = requestAnimationFrame(updateAction);
+        }
+
+        function checkWallCollision(x, y, p) {
+            return missionData.walls.some(w => x+p < w.x+w.w && x+20-p > w.x && y+p < w.y+w.h && y+20-p > w.y);
+        }
+
+        function caught() {
+            missionData.isRunning = false; cancelAnimationFrame(gameLoop);
+            modifyHP(-1);
+            if(gameState.hp > 0) { 
+                alert("Ketahuan! Penjaga Jepang melihatmu!"); 
+                startMission(missionData.walls.length > 5 ? 2 : 1); 
+            }
+        }
+
+        function winMission() {
+            missionData.isRunning = false; cancelAnimationFrame(gameLoop);
+            document.getElementById('canvas-container').style.display = "none";
+            updateScene(missionData.walls.length > 5 ? "bab3_start" : "bab2_start");
+        }
+    </script>
+</body>
+</html>
